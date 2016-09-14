@@ -28,7 +28,7 @@ import os  # Files management
 from tqdm import tqdm  # Progress bar
 import tensorflow as tf
 
-from chatbot.textdata import TextData
+from chatbot.cornelltextdata import CornellTextData
 from chatbot.model import Model
 
 
@@ -144,7 +144,7 @@ class Chatbot:
 
         self.loadModelParams()  # Update the self.modelDir and self.globStep, for now, not used when loading Model (but need to be called before _getSummaryName)
 
-        self.textData = TextData(self.args)
+        self.textData = CornellTextData(self.args)
         # TODO: Add a mode where we can force the input of the decoder // Try to visualize the predictions for
         # each word of the vocabulary / decoder input
         # TODO: For now, the model are trained for a specific dataset (because of the maxLength which define the
