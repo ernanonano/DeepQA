@@ -167,6 +167,19 @@ class BaseTextData:
 
         return batch
 
+
+    def genNextSamples(self):
+            """ Generator over the mini-batch training samples
+            """
+            for i in range(0, self.getSampleSize(), self.args.batchSize):
+                yield self.trainingSamples[i:min(i + self.args.batchSize, self.getSampleSize())]
+                
+    
+
+    def getNumberOfBatches(self):
+        return int(self.getSampleSize()/ self.args.batchSize)
+
+
     def getBatches(self):
         """Prepare the batches for the current epoch
         Return:
@@ -176,13 +189,7 @@ class BaseTextData:
         
         batches = []
 
-        def genNextSamples():
-            """ Generator over the mini-batch training samples
-            """
-            for i in range(0, self.getSampleSize(), self.args.batchSize):
-                yield self.trainingSamples[i:min(i + self.args.batchSize, self.getSampleSize())]
-
-        for samples in genNextSamples():
+        for samples in self.genNextSamples():
             batch = self._createBatch(samples)
             batches.append(batch)
         return batches

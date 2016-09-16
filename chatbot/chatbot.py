@@ -225,12 +225,15 @@ class Chatbot:
                 print()
                 print("----- Epoch {}/{} ; (lr={}) -----".format(e+1, self.args.numEpochs, self.args.learningRate))
 
-                batches = self.textData.getBatches()
+                self.textData.shuffle()
+                batches = self.textData.genNextSamples()
+                nbatches = self.textData.getNumberOfBatches()
 
                 # TODO: Also update learning parameters eventually
 
                 tic = datetime.datetime.now()
-                for nextBatch in tqdm(batches, desc="Training"):
+                for nextBatch_n in tqdm(range(nbatches), desc="Training"):
+                    nextBatch = self.textData._createBatch(batches.__next__())
                     # Training pass
                     ops, feedDict = self.model.step(nextBatch)
                     assert len(ops) == 2  # training, loss
