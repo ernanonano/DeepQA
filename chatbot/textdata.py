@@ -26,6 +26,7 @@ import pickle  # Saving the data
 import math  # For float comparison
 import os  # Checking file existance
 import random
+import collections
 
 from chatbot.cornelldata import CornellData
 
@@ -67,6 +68,8 @@ class TextData:
         
         self.word2id = {}
         self.id2word = {}  # For a rapid conversion
+        
+        self.wordDictionary = {}
         
         self.loadCorpus(self.samplesDir)
 
@@ -288,7 +291,9 @@ class TextData:
             if inputWords and targetWords:  # Filter wrong samples (if one of the list is empty)
                 self.trainingSamples.append([inputWords, targetWords])
 
-    def extractText(self, line, isTarget=False):
+
+
+    def extractText(self, line, isTarget=False, limit_vocabulary = False):
         """Extract the words from a sample lines
         Args:
             line (str): a line containing the text to extract
@@ -314,7 +319,13 @@ class TextData:
             if len(words) + len(tokens) <= self.args.maxLength:
                 tempWords = []
                 for token in tokens:
-                    tempWords.append(self.getWordId(token))  # Create the vocabulary and the training sentences
+                    if limit_vocabulary:
+                        if token in self.wordDictionary:
+                            tempWords.append(self.getWordId(token))  # Create the vocabulary and the training sentences
+                        else:
+                            tempWords.append(self.getWordId("<unknown>"))
+                    else:
+                        tempWords.append(self.getWordId(token))  # Create the vocabulary and the training sentences
 
                 if isTarget:
                     words = words + tempWords

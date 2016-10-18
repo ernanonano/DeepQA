@@ -26,6 +26,8 @@ import pickle  # Saving the data
 import math  # For float comparison
 import os  # Checking file existance
 import random
+import collections
+
 
 from chatbot.cornelldata import CornellData
 
@@ -296,8 +298,34 @@ class BaseTextData:
             
             if inputWords and targetWords:  # Filter wrong samples (if one of the list is empty)
                 self.trainingSamples.append([inputWords, targetWords])
+                
+                
+    def createDictionaryCommonWords(self, conversations):
+        #count = [["<pad>",0], "<go>"]
+        
+        #self.padToken = self.getWordId("<pad>")  # Padding (Warning: first things to add > id=0 !!)
+        #self.goToken = self.getWordId("<go>")  # Start of sequence
+        #self.eosToken = self.getWordId("<eos>")  # End of sequence
+        #self.unknownToken = self.getWordId("<unknown>")
+        count = []
+        words = []
+        for conversation_list in conversations:
+            for conversation in conversation_list:
+                for sentencesToken in nltk.sent_tokenize(" ".join(conversation)):
+                    for token in nltk.word_tokenize(sentencesToken):
+                        words.append(token)
+        
+        count.extend(collections.Counter(words).most_common(self.args.vocabularySize ))
 
-    def extractText(self, line, isTarget=False):
+        wordDictionary = set()
+        
+        for word, _ in count:
+            wordDictionary.add(word)
+        
+        self.wordDictionary = wordDictionary
+        print('Final number of words: ' +  str(len(wordDictionary)) + ' vocabularySize limit: ' + str(self.args.vocabularySize) )
+
+    def extractText(self, line, isTarget=False, limit_vocabulary = False):
         """Extract the words from a sample lines
         Args:
             line (str): a line containing the text to extract
@@ -323,7 +351,13 @@ class BaseTextData:
             if len(words) + len(tokens) <= self.args.maxLength:
                 tempWords = []
                 for token in tokens:
-                    tempWords.append(self.getWordId(token))  # Create the vocabulary and the training sentences
+                    if limit_vocabulary:
+                        if token in self.wordDictionary:
+                            tempWords.append(self.getWordId(token))  # Create the vocabulary and the training sentences
+                        else:
+                            tempWords.append(self.getWordId("<unknown>"))
+                    else:
+                        tempWords.append(self.getWordId(token))  # Create the vocabulary and the training sentences
 
                 if isTarget:
                     words = words + tempWords

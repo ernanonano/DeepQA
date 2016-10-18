@@ -62,6 +62,7 @@ class ConversationTextData(BaseTextData):
         self.unknownToken = self.getWordId("<unknown>")  # Word dropped from vocabulary
         
         # Preprocessing data
+        self.createDictionaryCommonWords(conversations)
 
         for conversation in tqdm(conversations, desc="Extract conversations"):
             self.extractConversation(conversation)
@@ -81,8 +82,8 @@ class ConversationTextData(BaseTextData):
             
             #print('Conversation ' + str(i) + ' inputLine ' + str(inputLine) + ' targetLine ' + str(targetLine))
             
-            inputWords  = self.extractText( " ".join(inputLine) )
-            targetWords = self.extractText( " ".join(targetLine), True)
+            inputWords  = self.extractText( " ".join(inputLine) , isTarget = False, limit_vocabulary = True)
+            targetWords = self.extractText( " ".join(targetLine), isTarget = True, limit_vocabulary = True)
             
             if inputWords and targetWords:  # Filter wrong samples (if one of the list is empty)
                 self.trainingSamples.append([inputWords, targetWords])
@@ -106,9 +107,11 @@ class ConversationTextData(BaseTextData):
                 conversation.append(text)
                 if len(conversation) == 2:
                     #print(conversation)
-                    if len(conversation[0]) <= 15 and len(conversation[1]) <= 15:
+                    if len(conversation[0]) <= 20 and len(conversation[1]) <= 20 and conversation[0][0] != '*' and conversation[1][0] != '*':
                         conversations.append(conversation)
                     conversation = []
+                #if len(conversations) > 40:
+                    #break
                 
         return conversations
                 
