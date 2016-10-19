@@ -115,15 +115,15 @@ class Chatbot:
 
         # Network options (Warning: if modifying something here, also make the change on save/loadParams() )
         nnArgs = parser.add_argument_group('Network options', 'architecture related option')
-        nnArgs.add_argument('--hiddenSize', type=int, default=256, help='number of hidden units in each RNN cell')
-        nnArgs.add_argument('--numLayers', type=int, default=2, help='number of rnn layers')
-        nnArgs.add_argument('--embeddingSize', type=int, default=32, help='embedding size of the word representation')
+        nnArgs.add_argument('--hiddenSize', type=int, default=1024, help='number of hidden units in each RNN cell')
+        nnArgs.add_argument('--numLayers', type=int, default=3, help='number of rnn layers')
+        nnArgs.add_argument('--embeddingSize', type=int, default=128, help='embedding size of the word representation')
 
         # Training options
         trainingArgs = parser.add_argument_group('Training options')
-        trainingArgs.add_argument('--numEpochs', type=int, default=30, help='maximum number of epochs to run')
-        trainingArgs.add_argument('--saveEvery', type=int, default=1000, help='nb of mini-batch step before creating a model checkpoint')
-        trainingArgs.add_argument('--batchSize', type=int, default=10, help='mini-batch size')
+        trainingArgs.add_argument('--numEpochs', type=int, default=300, help='maximum number of epochs to run')
+        trainingArgs.add_argument('--saveEvery', type=int, default=200, help='nb of mini-batch step before creating a model checkpoint')
+        trainingArgs.add_argument('--batchSize', type=int, default=64, help='mini-batch size')
         trainingArgs.add_argument('--learningRate', type=float, default=0.001, help='Learning rate')
 
         return parser.parse_args(args)
@@ -173,8 +173,9 @@ class Chatbot:
         # Also fix seed for random.shuffle (does it works globally for all files ?)
 
         # Running session
-
-        self.sess = tf.Session()  # TODO: Replace all sess by self.sess (not necessary a good idea) ?
+        config = tf.ConfigProto()
+        config.gpu_options.allow_growth = True
+        self.sess = tf.Session(config=config)  # TODO: Replace all sess by self.sess (not necessary a good idea) ?
         
         for var in tf.trainable_variables():
             print(var.name)

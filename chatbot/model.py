@@ -67,7 +67,9 @@ class Model:
 
         # Creation of the rnn cell
         with tf.variable_scope("chatbot_cell"):  # TODO: How to make this appear on the graph ?
-            encoDecoCell = tf.nn.rnn_cell.BasicLSTMCell(self.args.hiddenSize, state_is_tuple=True)  # Or GRUCell, LSTMCell(args.hiddenSize)
+            #encoDecoCell = tf.nn.rnn_cell.BasicLSTMCell(self.args.hiddenSize, state_is_tuple=True)  # Or GRUCell, LSTMCell(args.hiddenSize)
+            encoDecoCell = tf.nn.rnn_cell.GRUCell(self.args.hiddenSize)  # Or GRUCell, LSTMCell(args.hiddenSize)
+            
             #encoDecoCell = tf.nn.rnn_cell.DropoutWrapper(encoDecoCell, input_keep_prob=1.0, output_keep_prob=1.0)  # TODO: Custom values (WARNING: No dropout when testing !!!)
             encoDecoCell = tf.nn.rnn_cell.MultiRNNCell([encoDecoCell] * self.args.numLayers, state_is_tuple=True)
 
@@ -113,6 +115,30 @@ class Model:
             output_projection=None,  # Eventually
             feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
         )
+        
+        #decoderOutputs, states = my_embedding_attention_seq2seq(
+            #encoder_inputs = self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
+            #decoder_inputs= self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
+            #cell = encoDecoCell,
+            #num_encoder_symbols = self.textData.getVocabularySize(),
+            #num_decoder_symbols = self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
+            #embedding_size=self.args.embeddingSize,  # Dimension of each word
+            #output_projection=None,  # Eventually
+            #feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
+        #)
+        
+        #def my_embedding_attention_seq2seq(encoder_inputs,
+                                #decoder_inputs,
+                                #cell,
+                                #num_encoder_symbols,
+                                #num_decoder_symbols,
+                                #embedding_size,
+                                #num_heads=1,
+                                #output_projection=None,
+                                #feed_previous=False,
+                                #dtype=None,
+                                #scope=None,
+                                #initial_state_attention=False):
         
         
         
