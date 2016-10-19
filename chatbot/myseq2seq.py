@@ -18,6 +18,90 @@ from tensorflow.python.ops import rnn_cell
 from tensorflow.python.ops import variable_scope
 from tensorflow.python.util import nest
 from tensorflow.python.ops.seq2seq import *
+import tensorflow as tf
+
+
+def batch_sample_with_temperature(a, temperature=1.0):
+  '''this function is like sample_with_temperature except it can handle batch input a of [batch_size x logits] 
+      this function takes logits input, and produces a specific number from the array. This is all done on the gpu
+      because this function uses tensorflow
+      As you increase the temperature, you will get more diversified output but with more errors (usually gramatical if you're 
+          doing text)
+  args: 
+      Logits -- this must be a 2d array [batch_size x logits]
+      Temperature -- how much variance you want in output
+  returns:
+      Selected number from distribution
+  '''
+
+  '''
+  Equation can be found here: https://en.wikipedia.org/wiki/Softmax_function (under reinforcement learning)
+      Karpathy did it here as well: https://github.com/karpathy/char-rnn/blob/4297a9bf69726823d944ad971555e91204f12ca8/sample.lua'''
+  '''a is [batch_size x logits]'''
+  with tf.op_scope([a,temperature], "batch_sample_with_temperature"):
+
+    exponent_raised = tf.exp(tf.div(a, temperature)) #start by reduction of temperature, and get rid of negative numbers with exponent
+    matrix_X = tf.div(exponent_raised, tf.reduce_sum(exponent_raised, reduction_indices = 1)) #this will yield probabilities!
+    matrix_U = tf.random_uniform(tf.shape(a), minval = 0, maxval = 1)
+    final_number = tf.argmax(tf.sub(matrix_X, matrix_U), dimension = 1) #you want dimension = 1 because you are argmaxing across rows.
+
+  return final_number
+
+def _extract_sample_and_embed(embedding, output_projection=None,
+                              update_embedding=True):
+  """Get a loop_function that extracts the previous symbol and embeds it.
+  Args:
+    embedding: embedding tensor for symbols.
+    output_projection: None or a pair (W, B). If provided, each fed previous
+      output will first be multiplied by W and added B.
+    update_embedding: Boolean; if False, the gradients will not propagate
+      through the embeddings.
+  Returns:
+    A loop function.
+  """
+  def loop_function(prev, _):
+    if output_projection is not None:
+      prev = nn_ops.xw_plus_b(
+          prev, output_projection[0], output_projection[1])
+    #prev_symbol = batch_sample_with_temperature(prev, temperature = 0.5)
+    prev_symbol = tf.multinomial(prev, 1)[:,0]
+    # Note that gradients will not propagate through the second parameter of
+    # embedding_lookup.
+    emb_prev = embedding_ops.embedding_lookup(embedding, prev_symbol)
+    if not update_embedding:
+      emb_prev = array_ops.stop_gradient(emb_prev)
+    return emb_prev
+  return loop_function
+
+
+
+
+
+def _extract_argmax_and_embed(embedding, output_projection=None,
+                              update_embedding=True):
+  """Get a loop_function that extracts the previous symbol and embeds it.
+  Args:
+    embedding: embedding tensor for symbols.
+    output_projection: None or a pair (W, B). If provided, each fed previous
+      output will first be multiplied by W and added B.
+    update_embedding: Boolean; if False, the gradients will not propagate
+      through the embeddings.
+  Returns:
+    A loop function.
+  """
+  def loop_function(prev, _):
+    if output_projection is not None:
+      prev = nn_ops.xw_plus_b(
+          prev, output_projection[0], output_projection[1])
+    prev_symbol = math_ops.argmax(prev, 1)
+    # Note that gradients will not propagate through the second parameter of
+    # embedding_lookup.
+    emb_prev = embedding_ops.embedding_lookup(embedding, prev_symbol)
+    if not update_embedding:
+      emb_prev = array_ops.stop_gradient(emb_prev)
+    return emb_prev
+  return loop_function
+
 
 
 def my_embedding_rnn_decoder(decoder_inputs,
@@ -81,7 +165,7 @@ def my_embedding_rnn_decoder(decoder_inputs,
     
     
   with variable_scope.variable_scope(scope or "embedding_rnn_decoder"):    
-    loop_function = _extract_argmax_and_embed(
+    loop_function = _extract_sample_and_embed(
         embedding, output_projection,
         update_embedding_for_previous) if feed_previous else None
     emb_inp = (
