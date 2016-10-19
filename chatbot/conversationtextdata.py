@@ -86,7 +86,8 @@ class ConversationTextData(BaseTextData):
             targetWords = self.extractText( " ".join(targetLine), isTarget = True, limit_vocabulary = True)
             
             if inputWords and targetWords:  # Filter wrong samples (if one of the list is empty)
-                self.trainingSamples.append([inputWords, targetWords])
+                if targetWords.count(self.getWordId("<unknown>")) == 0:  # Filter samples with out-of-vocabulary target words
+                    self.trainingSamples.append([inputWords, targetWords])
 
 
     def loadAndParseConversations(self, input_file):

@@ -23,6 +23,7 @@ Model to predict the next sentence given an input sequence
 import tensorflow as tf
 
 from chatbot.textdata import Batch
+from chatbot.myseq2seq import *
 
 
 class Model:
@@ -83,7 +84,26 @@ class Model:
         # Define the network
         # Here we use an embedding model, it takes integer as input and convert them into word vector for
         # better word representation
-        decoderOutputs, states = tf.nn.seq2seq.embedding_rnn_seq2seq(
+        #decoderOutputs, states = tf.nn.seq2seq.embedding_rnn_seq2seq(
+            #self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
+            #self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
+            #encoDecoCell,
+            #self.textData.getVocabularySize(),
+            #self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
+            #embedding_size=self.args.embeddingSize,  # Dimension of each word
+            #output_projection=None,  # Eventually
+            #feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
+        #)
+        #decoderOutputs, states = tf.nn.seq2seq.embedding_tied_rnn_seq2seq(
+            #encoder_inputs = self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
+            #decoder_inputs = self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
+            #cell = encoDecoCell,
+            #num_symbols = self.textData.getVocabularySize(),
+            #embedding_size=self.args.embeddingSize,  # Dimension of each word
+            #output_projection=None,  # Eventually
+            #feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
+        #)
+        decoderOutputs, states = my_embedding_rnn_seq2seq(
             self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
             self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
             encoDecoCell,
@@ -93,7 +113,9 @@ class Model:
             output_projection=None,  # Eventually
             feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
         )
-
+        
+        
+        
         # For testing only
         if self.args.test:
             self.outputs = decoderOutputs

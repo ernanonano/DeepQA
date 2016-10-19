@@ -111,7 +111,7 @@ class Chatbot:
         datasetArgs.add_argument('--datasetTag', type=str, default='meneame', help='add a tag to the dataset (file where to load the vocabulary and the precomputed samples, not the original corpus). Useful to manage multiple versions')  # The samples are computed from the corpus if it does not exist already. There are saved in \'data/samples/\'
         datasetArgs.add_argument('--ratioDataset', type=float, default=1.0, help='ratio of dataset used to avoid using the whole dataset')  # Not implemented, useless ?
         datasetArgs.add_argument('--maxLength', type=int, default=10, help='maximum length of the sentence (for input and output), define number of maximum step of the RNN')
-        datasetArgs.add_argument('--vocabularySize', type=int, default=20000, help='number of words in the vocabulary')
+        datasetArgs.add_argument('--vocabularySize', type=int, default=40000, help='number of words in the vocabulary')
 
         # Network options (Warning: if modifying something here, also make the change on save/loadParams() )
         nnArgs = parser.add_argument_group('Network options', 'architecture related option')
@@ -175,6 +175,10 @@ class Chatbot:
         # Running session
 
         self.sess = tf.Session()  # TODO: Replace all sess by self.sess (not necessary a good idea) ?
+        
+        for var in tf.trainable_variables():
+            print(var.name)
+            #tf.histogram_summary(var.name, var)
 
         print('Initialize variables...')
         self.sess.run(tf.initialize_all_variables())
