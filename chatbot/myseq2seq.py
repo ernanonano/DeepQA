@@ -48,7 +48,7 @@ def batch_sample_with_temperature(a, temperature=1.0):
   return final_number
 
 def _extract_sample_and_embed(embedding, output_projection=None,
-                              update_embedding=True):
+                              update_embedding=True, temperature=1.0):
   """Get a loop_function that extracts the previous symbol and embeds it.
   Args:
     embedding: embedding tensor for symbols.
@@ -64,7 +64,7 @@ def _extract_sample_and_embed(embedding, output_projection=None,
       prev = nn_ops.xw_plus_b(
           prev, output_projection[0], output_projection[1])
     #prev_symbol = batch_sample_with_temperature(prev, temperature = 0.5)
-    prev_symbol = tf.multinomial(prev, 1)[:,0]
+    prev_symbol = tf.multinomial(tf.div(prev,temperature), 1)[:,0]
     # Note that gradients will not propagate through the second parameter of
     # embedding_lookup.
     emb_prev = embedding_ops.embedding_lookup(embedding, prev_symbol)
@@ -167,7 +167,7 @@ def my_embedding_rnn_decoder(decoder_inputs,
   with variable_scope.variable_scope(scope or "embedding_rnn_decoder"):    
     loop_function = _extract_sample_and_embed(
         embedding, output_projection,
-        update_embedding_for_previous) if feed_previous else None
+        update_embedding_for_previous, temperature = 1.0) if feed_previous else None
     emb_inp = (
         embedding_ops.embedding_lookup(embedding, i) for i in decoder_inputs)
     return rnn_decoder(emb_inp, initial_state, cell,
