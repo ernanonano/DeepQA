@@ -44,6 +44,7 @@ class Chatbot:
         """
         ALL = 'all'
         INTERACTIVE = 'interactive'  # The user can write his own questions
+        AUTOMATIC = 'automatic'
         DAEMON = 'daemon'  # The chatbot runs on background and can regularly be called to predict something
 
     def __init__(self):
@@ -89,7 +90,7 @@ class Chatbot:
         globalArgs = parser.add_argument_group('Global options')
         globalArgs.add_argument('--test',
                                 nargs='?',
-                                choices=[Chatbot.TestMode.ALL, Chatbot.TestMode.INTERACTIVE, Chatbot.TestMode.DAEMON],
+                                choices=[Chatbot.TestMode.ALL, Chatbot.TestMode.INTERACTIVE, Chatbot.TestMode.AUTOMATIC, Chatbot.TestMode.DAEMON],
                                 const=Chatbot.TestMode.ALL, default=None,
                                 help='if present, launch the program try to answer all sentences from data/test/ with'
                                      ' the defined model(s), in interactive mode, the user can wrote his own sentences,'
@@ -194,6 +195,8 @@ class Chatbot:
             # probably have to modify the TensorFlow source code
             if self.args.test == Chatbot.TestMode.INTERACTIVE:
                 self.mainTestInteractive(self.sess)
+            elif self.args.test == Chatbot.TestMode.AUTOMATIC:
+                self.mainTestAutomatic(self.sess)                
             elif self.args.test == Chatbot.TestMode.ALL:
                 print('Start predicting...')
                 self.predictTestset(self.sess)
@@ -332,6 +335,49 @@ class Chatbot:
                 print(self.textData.sequence2str(answer))
             
             print()
+            
+            
+    def mainTestAutomatic(self, sess):
+        """ Try predicting the sentences that the user will enter in the console
+        Args:
+            sess: The current running session
+        """
+        # TODO: If verbose mode, also show similar sentences from the training set with the same words (include in mainTest also)
+        # TODO: Also show the top 10 most likely predictions for each predicted output (when verbose mode)
+        # TODO: Log the questions asked for latter re-use (merge with test/samples.txt)
+
+        print('Testing: Launch interactive mode:')
+        print('')
+        print('Welcome to the interactive mode, here you can ask to Deep Q&A the sentence you want. Don\'t have high '
+              'expectation. Type \'exit\' or just press ENTER to quit the program. Have fun.')
+
+        question = input(self.SENTENCES_PREFIX[0])
+        if question == '' or question == 'exit':
+            return
+  
+        original_question = question
+
+        while True:
+
+            questionSeq = []  # Will be contain the question as seen by the encoder
+            answer = self.singlePredict(question, questionSeq)
+            if not answer:
+                question = original_question + " despierta"
+                continue  # Back to the beginning, try again
+            
+            if self.textData.sequence2str(answer, clean=True).strip() == question:
+                question = question + question + ' despierta '
+
+            print('{}{}'.format(self.SENTENCES_PREFIX[1], self.textData.sequence2str(answer, clean=True)))
+            
+            if self.args.verbose:
+                print(self.textData.batchSeq2str(questionSeq, clean=True, reverse=True))
+                print(self.textData.sequence2str(answer))
+            
+            print()            
+            question = self.textData.sequence2str(answer, clean=True).strip()
+            print(self.SENTENCES_PREFIX[0], question)
+            
 
     def singlePredict(self, question, questionSeq=None):
         """ Predict the sentence
