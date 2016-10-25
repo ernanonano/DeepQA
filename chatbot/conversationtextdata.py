@@ -43,12 +43,12 @@ class ConversationTextData(BaseTextData):
             args: parameters of the model
         """
         # Path variables
-        self.corpusDir = os.path.join(args.rootDir, 'data/meneame/')
+        self.corpusDir = os.path.join(args.rootDir, 'data/' + args.datasetTag + "/")
         super().__init__(args)
         
     def _loadCorpus(self):
         print('loading corpus')
-        conversationData = self.loadAndParseConversations(self.corpusDir + 'meneame_corpus.txt')
+        conversationData = self.loadAndParseConversations(self.corpusDir + self.args.datasetTag + '_corpus.txt')
         self.createCorpus(conversationData)
     
 

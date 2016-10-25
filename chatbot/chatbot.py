@@ -587,6 +587,8 @@ class Chatbot:
             return '/cpu:0'
         elif self.args.device == 'gpu':
             return '/gpu:0'
+        elif str(self.args.device).startswith('/'):
+            return self.args.device
         elif self.args.device is None:  # No specified device (default)
             return None
         else:
