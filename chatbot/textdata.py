@@ -66,15 +66,9 @@ class TextData:
 
         self.word2id = {}
         self.id2word = {}  # For a rapid conversion
-<<<<<<< HEAD
         
         self.wordDictionary = {}
         
-||||||| merged common ancestors
-        
-=======
-
->>>>>>> origin/master
         self.loadCorpus(self.samplesDir)
 
         # Plot some stats:
