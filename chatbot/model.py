@@ -62,6 +62,24 @@ class Model:
 
         # TODO: Create name_scopes (for better graph visualisation)
         # TODO: Use buckets (better perfs)
+        
+        
+        output_projection = None
+        softmax_loss_function = None
+        num_samples = 256
+        # Sampled softmax only makes sense if we sample less than vocabulary size.
+        if True: #num_samples > 0 and num_samples < self.target_vocab_size:
+            w = tf.get_variable("proj_w", [self.args.hiddenSize, self.textData.getVocabularySize()])
+            w_t = tf.transpose(w)
+            b = tf.get_variable("proj_b", [self.textData.getVocabularySize()])
+            output_projection = (w, b)
+
+        def sampled_loss(inputs, labels):
+            labels = tf.reshape(labels, [-1, 1])
+            return tf.nn.sampled_softmax_loss(w_t, b, inputs, labels, num_samples,
+                    self.textData.getVocabularySize())
+        softmax_loss_function = sampled_loss
+        
 
         # Creation of the rnn cell
         with tf.variable_scope("chatbot_cell"):  # TODO: How to make this appear on the graph ?
@@ -103,27 +121,41 @@ class Model:
             #output_projection=None,  # Eventually
             #feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
         #)
-        decoderOutputs, states = my_embedding_rnn_seq2seq(
-            self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
-            self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
-            encoDecoCell,
-            self.textData.getVocabularySize(),
-            self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
-            embedding_size=self.args.embeddingSize,  # Dimension of each word
-            output_projection=None,  # Eventually
-            feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
-        )
-        
-        #decoderOutputs, states = my_embedding_attention_seq2seq(
-            #encoder_inputs = self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
-            #decoder_inputs= self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
-            #cell = encoDecoCell,
-            #num_encoder_symbols = self.textData.getVocabularySize(),
-            #num_decoder_symbols = self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
+        #decoderOutputs, states = my_embedding_rnn_seq2seq(
+            #self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
+            #self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
+            #encoDecoCell,
+            #self.textData.getVocabularySize(),
+            #self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
             #embedding_size=self.args.embeddingSize,  # Dimension of each word
             #output_projection=None,  # Eventually
             #feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
         #)
+        
+        
+        #decoderOutputs, states = tf.nn.seq2seq.embedding_attention_seq2seq(
+            #self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
+            #self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
+            #encoDecoCell,
+            #self.textData.getVocabularySize(),
+            #self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
+            #embedding_size=self.args.embeddingSize,  # Dimension of each word
+            #output_projection=output_projection,  # Eventually
+            ## When we test (self.args.test), we use previous output as next input (feed_previous)
+            #feed_previous=bool(self.args.test)
+        #)
+
+        
+        decoderOutputs, states = my_embedding_attention_seq2seq(
+            encoder_inputs = self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
+            decoder_inputs= self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
+            cell = encoDecoCell,
+            num_encoder_symbols = self.textData.getVocabularySize(),
+            num_decoder_symbols = self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
+            embedding_size=self.args.embeddingSize,  # Dimension of each word
+            output_projection=output_projection,  # Eventually
+            feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
+        )
         
         #def my_embedding_attention_seq2seq(encoder_inputs,
                                 #decoder_inputs,
@@ -148,7 +180,7 @@ class Model:
         # For training only
         else:
             # Finally, we define the loss function
-            self.lossFct = tf.nn.seq2seq.sequence_loss(decoderOutputs, self.decoderTargets, self.decoderWeights, self.textData.getVocabularySize())
+            self.lossFct = tf.nn.seq2seq.sequence_loss(logits = decoderOutputs, targets = self.decoderTargets, weights = self.decoderWeights, softmax_loss_function = softmax_loss_function)
             tf.scalar_summary('loss', self.lossFct)  # Keep track of the cost
 
             # Initialize the optimizer

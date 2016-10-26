@@ -159,6 +159,7 @@ class Chatbot:
             print('Dataset created! Thanks for using this program')
             return  # No need to go further
 
+        print('Using device ' + str(self.getDevice()) )
         with tf.device(self.getDevice()):
             self.model = Model(self.args, self.textData)
 
@@ -586,7 +587,7 @@ class Chatbot:
         elif self.args.device == 'gpu':
             return '/gpu:0'
         elif str(self.args.device).startswith('/'):
-            return self.args.device
+            return str(self.args.device)
         elif self.args.device is None:  # No specified device (default)
             return None
         else:
