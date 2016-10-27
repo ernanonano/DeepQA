@@ -56,7 +56,7 @@ class Model:
         # Construct the graphs
         self.buildNetwork()
 
-    def buildNetwork(self):
+    def buildNetwork(self, dtype=tf.float32):
         """ Create the computational graph
         """
 
@@ -64,21 +64,30 @@ class Model:
         # TODO: Use buckets (better perfs)
         
         
-        output_projection = None
-        softmax_loss_function = None
-        num_samples = 256
+        self.output_projection = None
+        self.softmax_loss_function = None
+        num_samples = 512
         # Sampled softmax only makes sense if we sample less than vocabulary size.
         if True: #num_samples > 0 and num_samples < self.target_vocab_size:
-            w = tf.get_variable("proj_w", [self.args.hiddenSize, self.textData.getVocabularySize()])
-            w_t = tf.transpose(w)
-            b = tf.get_variable("proj_b", [self.textData.getVocabularySize()])
-            output_projection = (w, b)
+          w = tf.get_variable("proj_w", [self.args.hiddenSize, self.textData.getVocabularySize()], dtype=dtype)
+          w_t = tf.transpose(w)
+          b = tf.get_variable("proj_b", [self.textData.getVocabularySize()], dtype=dtype)
+          self.output_projection = (w, b)
 
-        def sampled_loss(inputs, labels):
+          def sampled_loss(inputs, labels):
             labels = tf.reshape(labels, [-1, 1])
-            return tf.nn.sampled_softmax_loss(w_t, b, inputs, labels, num_samples,
-                    self.textData.getVocabularySize())
-        softmax_loss_function = sampled_loss
+            # We need to compute the sampled_softmax_loss using 32bit floats to
+            # avoid numerical instabilities.
+            local_w_t = tf.cast(w_t, tf.float32)
+            local_b = tf.cast(b, tf.float32)
+            local_inputs = tf.cast(inputs, tf.float32)
+            return tf.cast(
+                tf.nn.sampled_softmax_loss(local_w_t, local_b, local_inputs, labels,
+                                          num_samples, self.textData.getVocabularySize()),
+                dtype)
+          self.softmax_loss_function = sampled_loss
+          
+          
         
 
         # Creation of the rnn cell
@@ -128,10 +137,21 @@ class Model:
             #self.textData.getVocabularySize(),
             #self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
             #embedding_size=self.args.embeddingSize,  # Dimension of each word
-            #output_projection=None,  # Eventually
+            #output_projection=self.output_projection,  # Eventually
             #feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
         #)
         
+        
+        #decoderOutputs, states = tf.nn.seq2seq.embedding_rnn_seq2seq(
+            #self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
+            #self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
+            #encoDecoCell,
+            #self.textData.getVocabularySize(),
+            #self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
+            #embedding_size=self.args.embeddingSize,  # Dimension of each word
+            #output_projection=self.output_projection,  # Eventually
+            #feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
+        #)
         
         #decoderOutputs, states = tf.nn.seq2seq.embedding_attention_seq2seq(
             #self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
@@ -140,7 +160,7 @@ class Model:
             #self.textData.getVocabularySize(),
             #self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
             #embedding_size=self.args.embeddingSize,  # Dimension of each word
-            #output_projection=output_projection,  # Eventually
+            #output_projection= self.output_projection,  # Eventually
             ## When we test (self.args.test), we use previous output as next input (feed_previous)
             #feed_previous=bool(self.args.test)
         #)
@@ -153,7 +173,7 @@ class Model:
             num_encoder_symbols = self.textData.getVocabularySize(),
             num_decoder_symbols = self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
             embedding_size=self.args.embeddingSize,  # Dimension of each word
-            output_projection=output_projection,  # Eventually
+            output_projection=self.output_projection,  # Eventually
             feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
         )
         
@@ -175,12 +195,21 @@ class Model:
         # For testing only
         if self.args.test:
             self.outputs = decoderOutputs
+            if self.output_projection is not None:
+                self.outputs = [ tf.matmul(output, self.output_projection[0]) + self.output_projection[1]
+                                  for output in self.outputs
+                               ]
             # TODO: Attach a summary to visualize the output
 
         # For training only
         else:
             # Finally, we define the loss function
-            self.lossFct = tf.nn.seq2seq.sequence_loss(logits = decoderOutputs, targets = self.decoderTargets, weights = self.decoderWeights, softmax_loss_function = softmax_loss_function)
+            if self.softmax_loss_function is None:
+                print('softmax_loss_function is None')
+                self.lossFct = tf.nn.seq2seq.sequence_loss(decoderOutputs, self.decoderTargets, self.decoderWeights, self.textData.getVocabularySize())
+            else:
+                self.lossFct = tf.nn.seq2seq.sequence_loss(decoderOutputs, self.decoderTargets, self.decoderWeights, self.textData.getVocabularySize(),  softmax_loss_function = self.softmax_loss_function)
+                #self.lossFct = tf.nn.seq2seq.sequence_loss(logits = decoderOutputs, targets = self.decoderTargets, weights = self.decoderWeights, softmax_loss_function = self.softmax_loss_function)
             tf.scalar_summary('loss', self.lossFct)  # Keep track of the cost
 
             # Initialize the optimizer

@@ -332,6 +332,7 @@ class Chatbot:
             if self.args.verbose:
                 print(self.textData.batchSeq2str(questionSeq, clean=True, reverse=True))
                 print(self.textData.sequence2str(answer))
+                print(answer)
 
             print()
             
