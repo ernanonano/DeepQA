@@ -1,4 +1,5 @@
 # Copyright 2015 Conchylicultor. All Rights Reserved.
+# Modifications copyright (C) 2016 Carlos Segura
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -53,6 +54,12 @@ class Model:
         self.optOp = None
         self.outputs = None  # Outputs of the network, list of probability for each words
 
+
+        # Parameters of sampled softmax (needed for attention mechanism and a larg vocabulry size)
+        self.output_projection = None
+        self.softmax_loss_function = None
+        self.num_samples = self.args.softmaxSamples
+
         # Construct the graphs
         self.buildNetwork()
 
@@ -64,11 +71,9 @@ class Model:
         # TODO: Use buckets (better perfs)
         
         
-        self.output_projection = None
-        self.softmax_loss_function = None
-        num_samples = 512
+
         # Sampled softmax only makes sense if we sample less than vocabulary size.
-        if True: #num_samples > 0 and num_samples < self.target_vocab_size:
+        if self.num_samples > 0 and self.num_samples < self.textData.getVocabularySize():
           w = tf.get_variable("proj_w", [self.args.hiddenSize, self.textData.getVocabularySize()], dtype=dtype)
           w_t = tf.transpose(w)
           b = tf.get_variable("proj_b", [self.textData.getVocabularySize()], dtype=dtype)
@@ -83,7 +88,7 @@ class Model:
             local_inputs = tf.cast(inputs, tf.float32)
             return tf.cast(
                 tf.nn.sampled_softmax_loss(local_w_t, local_b, local_inputs, labels,
-                                          num_samples, self.textData.getVocabularySize()),
+                                          self.num_samples, self.textData.getVocabularySize()),
                 dtype)
           self.softmax_loss_function = sampled_loss
           

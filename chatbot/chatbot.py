@@ -117,6 +117,7 @@ class Chatbot:
         nnArgs.add_argument('--hiddenSize', type=int, default=1024, help='number of hidden units in each RNN cell')
         nnArgs.add_argument('--numLayers', type=int, default=3, help='number of rnn layers')
         nnArgs.add_argument('--embeddingSize', type=int, default=128, help='embedding size of the word representation')
+        nnArgs.add_argument('--softmaxSamples', type=int, default=512, help='Number of samples in the sampled softmax loss function. A value of 0 deactivates sampled softmax')
 
         # Training options
         trainingArgs = parser.add_argument_group('Training options')
@@ -513,6 +514,8 @@ class Chatbot:
             self.args.hiddenSize = config['Network'].getint('hiddenSize')
             self.args.numLayers = config['Network'].getint('numLayers')
             self.args.embeddingSize = config['Network'].getint('embeddingSize')
+            if config['Network'].getint('softmaxSamples') is not None:
+                self.args.softmaxSamples = config['Network'].getint('softmaxSamples')
 
             # No restoring for training params, batch size or other non model dependent parameters
 
@@ -525,6 +528,7 @@ class Chatbot:
             print('hiddenSize: {}'.format(self.args.hiddenSize))
             print('numLayers: {}'.format(self.args.numLayers))
             print('embeddingSize: {}'.format(self.args.embeddingSize))
+            print('softmaxSamples: {}'.format(self.args.softmaxSamples))
             print()
 
         # For now, not arbitrary  independent maxLength between encoder and decoder
@@ -550,7 +554,8 @@ class Chatbot:
         config['Network']['hiddenSize'] = str(self.args.hiddenSize)
         config['Network']['numLayers'] = str(self.args.numLayers)
         config['Network']['embeddingSize'] = str(self.args.embeddingSize)
-
+        config['Network']['softmaxSamples'] = str(self.args.softmaxSamples)
+        
         # Keep track of the learning params (but without restoring them)
         config['Training (won\'t be restored)'] = {}
         config['Training (won\'t be restored)']['learningRate'] = str(self.args.learningRate)
