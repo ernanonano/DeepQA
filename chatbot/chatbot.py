@@ -366,7 +366,8 @@ class Chatbot:
                 continue  # Back to the beginning, try again
             
             if self.textData.sequence2str(answer, clean=True).strip() == question:
-                question = question + question + ' despierta '
+                question = question + 'whatever ' + question
+                continue
 
             print('{}{}'.format(self.SENTENCES_PREFIX[1], self.textData.sequence2str(answer, clean=True)))
             
