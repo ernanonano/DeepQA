@@ -25,23 +25,69 @@ from chatbot.textdata import Batch
 from chatbot.myseq2seq import *
 
 
+class ProjectionOp:
+    """ Single layer perceptron
+    Project input tensor on the output dimension
+    """
+    def __init__(self, shape, scope=None, dtype=None):
+        """
+        Args:
+            shape: a tuple (input dim, output dim)
+            scope (str): encapsulate variables
+            dtype: the weights type
+        """
+        assert len(shape) == 2
+
+        self.scope = scope
+
+        # Projection on the keyboard
+        with tf.variable_scope('weights_' + self.scope):
+            self.W = tf.get_variable(
+                'weights',
+                shape,
+                # initializer=tf.truncated_normal_initializer()  # TODO: Tune value (fct of input size: 1/sqrt(input_dim))
+                dtype=dtype
+            )
+            self.b = tf.get_variable(
+                'bias',
+                shape[1],
+                initializer=tf.constant_initializer(),
+                dtype=dtype
+            )
+
+    def getWeights(self):
+        """ Convenience method for some tf arguments
+        """
+        return self.W, self.b
+
+    def __call__(self, X):
+        """ Project the output of the decoder into the vocabulary space
+        Args:
+            X (tf.Tensor): input value
+        """
+        with tf.name_scope(self.scope):
+            return tf.matmul(X, self.W) + self.b
+
+
 class Model:
     """
     Implementation of a seq2seq model.
-    Achitecture:
+    Architecture:
+        Encoder/decoder
         2 LTSM layers
     """
 
     def __init__(self, args, textData):
         """
         Args:
-            args: parametters of the model
+            args: parameters of the model
             textData: the dataset object
         """
         print("Model creation...")
 
         self.textData = textData  # Keep a reference on the dataset
         self.args = args  # Keep track of the parameters of the model
+        self.dtype = tf.float32
 
         # Placeholders
         self.encoderInputs  = None
@@ -53,13 +99,6 @@ class Model:
         self.lossFct = None
         self.optOp = None
         self.outputs = None  # Outputs of the network, list of probability for each words
-        
-        # Parameters of sampled softmax (needed for attention mechanism and a larg vocabulry size)
-        self.output_projection = None
-        self.softmax_loss_function = None
-        self.num_samples = self.args.softmaxSamples
-        self.dtype=tf.float32
-
 
 
         # Parameters of sampled softmax (needed for attention mechanism and a larg vocabulry size)
@@ -102,34 +141,40 @@ class Model:
           
         
 
+        # Parameters of sampled softmax (needed for attention mechanism and a large vocabulary size)
+        outputProjection = None
         # Sampled softmax only makes sense if we sample less than vocabulary size.
-        if self.num_samples > 0 and self.num_samples < self.textData.getVocabularySize():
-          w = tf.get_variable("proj_w", [self.args.hiddenSize, self.textData.getVocabularySize()], dtype=self.dtype)
-          w_t = tf.transpose(w)
-          b = tf.get_variable("proj_b", [self.textData.getVocabularySize()], dtype=self.dtype)
-          self.output_projection = (w, b)
+        if 0 < self.args.softmaxSamples < self.textData.getVocabularySize():
+            outputProjection = ProjectionOp(
+                (self.args.hiddenSize, self.textData.getVocabularySize()),
+                scope='softmax_projection',
+                dtype=self.dtype
+            )
 
-          def sampled_loss(inputs, labels):
-            labels = tf.reshape(labels, [-1, 1])
-            # We need to compute the sampled_softmax_loss using 32bit floats to
-            # avoid numerical instabilities.
-            local_w_t = tf.cast(w_t, tf.float32)
-            local_b = tf.cast(b, tf.float32)
-            local_inputs = tf.cast(inputs, tf.float32)
-            return tf.cast(
-                tf.nn.sampled_softmax_loss(local_w_t, local_b, local_inputs, labels,
-                                          self.num_samples, self.textData.getVocabularySize()),
-                self.dtype)
-          self.softmax_loss_function = sampled_loss
+            def sampledSoftmax(inputs, labels):
+                labels = tf.reshape(labels, [-1, 1])  # Add one dimension (nb of true classes, here 1)
 
+                # We need to compute the sampled_softmax_loss using 32bit floats to
+                # avoid numerical instabilities.
+                localWt     = tf.cast(tf.transpose(outputProjection.W), tf.float32)
+                localB      = tf.cast(outputProjection.b,               tf.float32)
+                localInputs = tf.cast(inputs,                           tf.float32)
+
+                return tf.cast(
+                    tf.nn.sampled_softmax_loss(
+                        localWt,  # Should have shape [num_classes, dim]
+                        localB,
+                        localInputs,
+                        labels,
+                        self.args.softmaxSamples,  # The number of classes to randomly sample per batch
+                        self.textData.getVocabularySize()),  # The number of classes
+                    self.dtype)
 
         # Creation of the rnn cell
-        with tf.variable_scope("chatbot_cell"):  # TODO: How to make this appear on the graph ?
-            #encoDecoCell = tf.nn.rnn_cell.BasicLSTMCell(self.args.hiddenSize, state_is_tuple=True)  # Or GRUCell, LSTMCell(args.hiddenSize)
-            encoDecoCell = tf.nn.rnn_cell.GRUCell(self.args.hiddenSize)  # Or GRUCell, LSTMCell(args.hiddenSize)
-            
-            #encoDecoCell = tf.nn.rnn_cell.DropoutWrapper(encoDecoCell, input_keep_prob=1.0, output_keep_prob=1.0)  # TODO: Custom values (WARNING: No dropout when testing !!!)
-            encoDecoCell = tf.nn.rnn_cell.MultiRNNCell([encoDecoCell] * self.args.numLayers, state_is_tuple=True)
+        encoDecoCell = tf.nn.rnn_cell.GRUCell(self.args.hiddenSize)  # Or GRUCell, LSTMCell(args.hiddenSize)
+        #encoDecoCell = tf.nn.rnn_cell.DropoutWrapper(encoDecoCell, input_keep_prob=1.0, output_keep_prob=1.0)  # TODO: Custom values (WARNING: No dropout when testing !!!)
+        encoDecoCell = tf.nn.rnn_cell.MultiRNNCell([encoDecoCell] * self.args.numLayers, state_is_tuple=True)
+
 
         # Network input (placeholders)
 
@@ -143,62 +188,7 @@ class Model:
 
         # Define the network
         # Here we use an embedding model, it takes integer as input and convert them into word vector for
-        # better word representation
-        #decoderOutputs, states = tf.nn.seq2seq.embedding_rnn_seq2seq(
-            #self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
-            #self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
-            #encoDecoCell,
-            #self.textData.getVocabularySize(),
-            #self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
-            #embedding_size=self.args.embeddingSize,  # Dimension of each word
-            #output_projection=None,  # Eventually
-            #feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
-        #)
-        #decoderOutputs, states = tf.nn.seq2seq.embedding_tied_rnn_seq2seq(
-            #encoder_inputs = self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
-            #decoder_inputs = self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
-            #cell = encoDecoCell,
-            #num_symbols = self.textData.getVocabularySize(),
-            #embedding_size=self.args.embeddingSize,  # Dimension of each word
-            #output_projection=None,  # Eventually
-            #feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
-        #)
-        #decoderOutputs, states = my_embedding_rnn_seq2seq(
-            #self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
-            #self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
-            #encoDecoCell,
-            #self.textData.getVocabularySize(),
-            #self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
-            #embedding_size=self.args.embeddingSize,  # Dimension of each word
-            #output_projection=self.output_projection,  # Eventually
-            #feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
-        #)
-        
-        
-        #decoderOutputs, states = tf.nn.seq2seq.embedding_rnn_seq2seq(
-            #self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
-            #self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
-            #encoDecoCell,
-            #self.textData.getVocabularySize(),
-            #self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
-            #embedding_size=self.args.embeddingSize,  # Dimension of each word
-            #output_projection=self.output_projection,  # Eventually
-            #feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
-        #)
-        
-        #decoderOutputs, states = tf.nn.seq2seq.embedding_attention_seq2seq(
-            #self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
-            #self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
-            #encoDecoCell,
-            #self.textData.getVocabularySize(),
-            #self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
-            #embedding_size=self.args.embeddingSize,  # Dimension of each word
-            #output_projection= self.output_projection,  # Eventually
-            ## When we test (self.args.test), we use previous output as next input (feed_previous)
-            #feed_previous=bool(self.args.test)
-        #)
-
-        
+        # better word representation        
         decoderOutputs, states = my_embedding_attention_seq2seq(
             encoder_inputs = self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
             decoder_inputs= self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
@@ -206,41 +196,30 @@ class Model:
             num_encoder_symbols = self.textData.getVocabularySize(),
             num_decoder_symbols = self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
             embedding_size=self.args.embeddingSize,  # Dimension of each word
-            output_projection=self.output_projection,  # Eventually
+            output_projection=outputProjection.getWeights() if outputProjection else None,
             feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
         )
-        
-        #def my_embedding_attention_seq2seq(encoder_inputs,
-                                #decoder_inputs,
-                                #cell,
-                                #num_encoder_symbols,
-                                #num_decoder_symbols,
-                                #embedding_size,
-                                #num_heads=1,
-                                #output_projection=None,
-                                #feed_previous=False,
-                                #dtype=None,
-                                #scope=None,
-                                #initial_state_attention=False):
-        
         
         
         # For testing only
         if self.args.test:
-            self.outputs = decoderOutputs
-            if self.output_projection is not None:
-                self.outputs = [ tf.matmul(output, self.output_projection[0]) + self.output_projection[1]
-                                  for output in self.outputs
-                               ]
+            if not outputProjection:
+                self.outputs = decoderOutputs
+            else:
+                self.outputs = [outputProjection(output) for output in decoderOutputs]
+            
             # TODO: Attach a summary to visualize the output
 
         # For training only
         else:
             # Finally, we define the loss function
-            if self.softmax_loss_function is None:
-                self.lossFct = tf.nn.seq2seq.sequence_loss(decoderOutputs, self.decoderTargets, self.decoderWeights, self.textData.getVocabularySize())
-            else:
-                self.lossFct = tf.nn.seq2seq.sequence_loss(decoderOutputs, self.decoderTargets, self.decoderWeights, self.textData.getVocabularySize(),  softmax_loss_function = self.softmax_loss_function)
+            self.lossFct = tf.nn.seq2seq.sequence_loss(
+                decoderOutputs,
+                self.decoderTargets,
+                self.decoderWeights,
+                self.textData.getVocabularySize(),
+                softmax_loss_function= sampledSoftmax if outputProjection else None  # If None, use default SoftMax
+            )
             tf.scalar_summary('loss', self.lossFct)  # Keep track of the cost
 
             # Initialize the optimizer
