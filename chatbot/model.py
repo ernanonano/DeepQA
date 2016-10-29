@@ -53,6 +53,13 @@ class Model:
         self.lossFct = None
         self.optOp = None
         self.outputs = None  # Outputs of the network, list of probability for each words
+        
+        # Parameters of sampled softmax (needed for attention mechanism and a larg vocabulry size)
+        self.output_projection = None
+        self.softmax_loss_function = None
+        self.num_samples = self.args.softmaxSamples
+        self.dtype=tf.float32
+
 
 
         # Parameters of sampled softmax (needed for attention mechanism and a larg vocabulry size)
@@ -94,6 +101,27 @@ class Model:
           
           
         
+
+        # Sampled softmax only makes sense if we sample less than vocabulary size.
+        if self.num_samples > 0 and self.num_samples < self.textData.getVocabularySize():
+          w = tf.get_variable("proj_w", [self.args.hiddenSize, self.textData.getVocabularySize()], dtype=self.dtype)
+          w_t = tf.transpose(w)
+          b = tf.get_variable("proj_b", [self.textData.getVocabularySize()], dtype=self.dtype)
+          self.output_projection = (w, b)
+
+          def sampled_loss(inputs, labels):
+            labels = tf.reshape(labels, [-1, 1])
+            # We need to compute the sampled_softmax_loss using 32bit floats to
+            # avoid numerical instabilities.
+            local_w_t = tf.cast(w_t, tf.float32)
+            local_b = tf.cast(b, tf.float32)
+            local_inputs = tf.cast(inputs, tf.float32)
+            return tf.cast(
+                tf.nn.sampled_softmax_loss(local_w_t, local_b, local_inputs, labels,
+                                          self.num_samples, self.textData.getVocabularySize()),
+                self.dtype)
+          self.softmax_loss_function = sampled_loss
+
 
         # Creation of the rnn cell
         with tf.variable_scope("chatbot_cell"):  # TODO: How to make this appear on the graph ?
@@ -210,11 +238,9 @@ class Model:
         else:
             # Finally, we define the loss function
             if self.softmax_loss_function is None:
-                print('softmax_loss_function is None')
                 self.lossFct = tf.nn.seq2seq.sequence_loss(decoderOutputs, self.decoderTargets, self.decoderWeights, self.textData.getVocabularySize())
             else:
                 self.lossFct = tf.nn.seq2seq.sequence_loss(decoderOutputs, self.decoderTargets, self.decoderWeights, self.textData.getVocabularySize(),  softmax_loss_function = self.softmax_loss_function)
-                #self.lossFct = tf.nn.seq2seq.sequence_loss(logits = decoderOutputs, targets = self.decoderTargets, weights = self.decoderWeights, softmax_loss_function = self.softmax_loss_function)
             tf.scalar_summary('loss', self.lossFct)  # Keep track of the cost
 
             # Initialize the optimizer
