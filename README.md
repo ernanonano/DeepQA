@@ -1,4 +1,5 @@
 # Deep Q&A
+[![Join the chat at https://gitter.im/chatbot-pilots/DeepQA](https://badges.gitter.im/chatbot-pilots/DeepQA.svg)](https://gitter.im/chatbot-pilots/DeepQA?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
 
 #### Table of Contents
 
@@ -16,17 +17,23 @@ This work tries to reproduce the results of [A Neural Conversational Model](http
 
 The loading corpus part of the program is inspired by the Torch [neuralconvo](https://github.com/macournoyer/neuralconvo) from [macournoyer](https://github.com/macournoyer).
 
-For now, it uses the [Cornell Movie Dialogs](http://www.cs.cornell.edu/~cristian/Cornell_Movie-Dialogs_Corpus.html) corpus, but one of the long-term goal is to test it on bigger corpus.
+By default, it uses the [Cornell Movie Dialogs](http://www.cs.cornell.edu/~cristian/Cornell_Movie-Dialogs_Corpus.html) corpus. If you want to train it on a bigger (but noisier) dataset, [OpenSubtitles](http://opus.lingfil.uu.se/OpenSubtitles.php) is also available (thanks to [Eschnou](https://github.com/eschnou)). To use it, follow [those instructions](data/opensubs/) and use the flag `--corpus opensubs`.
 
 ## Installation
 
 The program requires the following dependencies (easy to install using pip):
  * python 3.5
- * tensorflow (tested with v0.9.0)
+ * tensorflow (tested with v0.11.0)
  * numpy
  * CUDA (for using gpu, see TensorFlow [installation page](https://www.tensorflow.org/versions/master/get_started/os_setup.html#optional-install-cuda-gpus-on-linux) for more details)
  * nltk (natural language toolkit for tokenized the sentences)
  * tqdm (for the nice progression bars)
+
+With you might also need to download additional data to make nltk work.
+
+```
+python3 -m nltk.downloader punkt
+```
 
 The Cornell dataset is already included.
 
@@ -50,7 +57,7 @@ Here are some flags which could be useful. For more help and options, use `pytho
  * `--verbose`: when testing, will print the sentences as they are computed.
  * `--playDataset`: show some dialogue samples from the dataset (can be use conjointly with `--createDataset` if this is the only action you want to perform).
 
-To visualize the computational graph and the cost with [TensorBoard](https://www.tensorflow.org/versions/r0.10/how_tos/summaries_and_tensorboard/index.html), just run `tensorboard --logdir save/`.
+To visualize the computational graph and the cost with [TensorBoard](https://www.tensorflow.org/versions/r0.11/how_tos/summaries_and_tensorboard/index.html), just run `tensorboard --logdir save/`.
 
 By default, the network architecture is a standard encoder/decoder with two LSTM layers (hidden size of 256) and an embedding size for the vocabulary of 32. The network is trained using ADAM. The maximum sentence length is set to 10 words, but can be increased.
 
@@ -75,7 +82,7 @@ python manage.py runserver
 
 After launch, the interface should be available on [http://localhost:8000/](http://localhost:8000/). If you want to deploy the program on a server, use `python manage.py runserver 0.0.0.0` instead. More info [here](https://docs.djangoproject.com/en/1.10/howto/deployment/checklist/).
 
-[![Chatbot web interface](http://e-pot.xyz/cv/thumb_chatbot.png)](http://e-pot.xyz/cv/chatbot.png)
+[![Chatbot web interface](chatbot_miniature.png)](http://e-pot.xyz/cv/chatbot.png)
 
 ## Results
 
