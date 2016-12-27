@@ -121,8 +121,8 @@ class Chatbot:
         nnArgs.add_argument('--numLayers', type=int, default=2, help='number of rnn layers')
         nnArgs.add_argument('--embeddingSize', type=int, default=32, help='embedding size of the word representation')
         nnArgs.add_argument('--initEmbeddings', action='store_true', help='if present, the program will initialize the embeddings with pre-trained word2vec vectors')
-        nnArgs.add_argument('--softmaxSamples', type=int, default=0, help='Number of samples in the sampled softmax loss function. A value of 0 deactivates sampled softmax')
-
+        nnArgs.add_argument('--softmaxSamples', type=int, default=512, help='Number of samples in the sampled softmax loss function. A value of 0 deactivates sampled softmax')
+        
         # Training options
         trainingArgs = parser.add_argument_group('Training options')
         trainingArgs.add_argument('--numEpochs', type=int, default=300, help='maximum number of epochs to run')
