@@ -20,7 +20,7 @@ Model to predict the next sentence given an input sequence
 """
 
 import tensorflow as tf
-
+from chatbot.myseq2seq import *
 from chatbot.textdata import Batch
 
 
@@ -168,12 +168,24 @@ class Model:
         # Define the network
         # Here we use an embedding model, it takes integer as input and convert them into word vector for
         # better word representation
-        decoderOutputs, states = tf.contrib.legacy_seq2seq.embedding_rnn_seq2seq(
-            self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
-            self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
-            encoDecoCell,
-            self.textData.getVocabularySize(),
-            self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
+        #decoderOutputs, states = tf.contrib.legacy_seq2seq.embedding_rnn_seq2seq(
+            #self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
+            #self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
+            #encoDecoCell,
+            #self.textData.getVocabularySize(),
+            #self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
+            #embedding_size=self.args.embeddingSize,  # Dimension of each word
+            #output_projection=outputProjection.getWeights() if outputProjection else None,
+            #feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
+        #)
+        
+        
+        decoderOutputs, states = my_embedding_attention_seq2seq(
+            encoder_inputs = self.encoderInputs,  # List<[batch=?, inputDim=1]>, list of size args.maxLength
+            decoder_inputs= self.decoderInputs,  # For training, we force the correct output (feed_previous=False)
+            cell = encoDecoCell,
+            num_encoder_symbols = self.textData.getVocabularySize(),
+            num_decoder_symbols = self.textData.getVocabularySize(),  # Both encoder and decoder have the same number of class
             embedding_size=self.args.embeddingSize,  # Dimension of each word
             output_projection=outputProjection.getWeights() if outputProjection else None,
             feed_previous=bool(self.args.test)  # When we test (self.args.test), we use previous output as next input (feed_previous)
