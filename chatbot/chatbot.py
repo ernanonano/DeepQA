@@ -384,6 +384,10 @@ class Chatbot:
         self.sess.close()
         print('Daemon closed.')
 
+
+    #def loadEmbedding(self, sess):
+
+
     def loadEmbedding(self, sess):
         """ Initialize embeddings with pre-trained word2vec vectors
         Will modify the embedding weights of the current loaded model

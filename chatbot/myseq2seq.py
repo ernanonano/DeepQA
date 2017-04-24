@@ -285,11 +285,11 @@ def my_embedding_rnn_seq2seq(encoder_inputs,
       reuse = None if feed_previous_bool else True
       with variable_scope.variable_scope(
           variable_scope.get_variable_scope(), reuse=reuse) as scope:
-        outputs, state = embedding_rnn_decoder(
+        outputs, state = my_embedding_rnn_decoder(
             decoder_inputs, encoder_state, cell, num_decoder_symbols,
             embedding_size, output_projection=output_projection,
             feed_previous=feed_previous_bool,
-            update_embedding_for_previous=False)
+            update_embedding_for_previous=False, scope = "rnn/embedding_wrapper")
         state_list = [state]
         if nest.is_sequence(state):
           state_list = nest.flatten(state)
@@ -376,7 +376,7 @@ def my_embedding_attention_decoder(decoder_inputs,
   with variable_scope.variable_scope(scope or "embedding_attention_decoder", dtype=dtype):
     loop_function = _extract_sample_and_embed(
         embedding, output_projection,
-        update_embedding_for_previous, temperature = 0.1) if feed_previous else None
+        update_embedding_for_previous, temperature = 0.4) if feed_previous else None
     emb_inp = [
         embedding_ops.embedding_lookup(embedding, i) for i in decoder_inputs]
     return attention_decoder(
@@ -488,7 +488,7 @@ def my_embedding_attention_seq2seq(encoder_inputs,
       reuse = None if feed_previous_bool else True
       with variable_scope.variable_scope(
           variable_scope.get_variable_scope(), reuse=reuse) as scope:
-        outputs, state = embedding_attention_decoder(
+        outputs, state = my_embedding_attention_decoder(
             decoder_inputs,
             encoder_state,
             attention_states,
@@ -500,7 +500,7 @@ def my_embedding_attention_seq2seq(encoder_inputs,
             output_projection=output_projection,
             feed_previous=feed_previous_bool,
             update_embedding_for_previous=False,
-            initial_state_attention=initial_state_attention)
+            initial_state_attention=initial_state_attention, scope = "rnn/embedding_wrapper")
         state_list = [state]
         if nest.is_sequence(state):
           state_list = nest.flatten(state)
