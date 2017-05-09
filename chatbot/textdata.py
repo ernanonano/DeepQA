@@ -293,6 +293,11 @@ class TextData:
             }
             pickle.dump(data, handle, -1)  # Using the highest protocol available
 
+    #def saveDatasetTfRecord(self, filename):
+        #def make_example(sample):
+            #ex = tf.train.SequenceExample()
+            
+
     def loadDataset(self, filename):
         """Load samples from file
         Args:
@@ -409,6 +414,8 @@ class TextData:
 
             if valid:
                 self.trainingSamples.append([inputWords, targetWords])  # TODO: Could replace list by tuple
+        
+        print("Kept ", len(self.trainingSamples), " samples.")
 
         self.idCount.clear()  # Not usefull anymore. Free data
 

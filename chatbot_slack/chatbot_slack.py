@@ -30,7 +30,9 @@ class ChatbotManager():
     def initSlack(self):
         slack_token = os.environ["SLACK_API_TOKEN"] 
         self.sc = SlackClient(slack_token)
-
+        self.users_dict = {}
+        for u in self.sc.api_call("users.list")['members']:
+            self.users_dict[u['id']] =  u['name']
 
     #@staticmethod
     def initBot(self):
@@ -65,9 +67,16 @@ class ChatbotManager():
                 data=self.sc.rtm_read()  # read all data from the RTM websocket 
                 if data and "text" in data[0] and 'bot_id' not in data[0]: 
                     logger.info(str(data) )
+                    print(str(data))
                     channel=data[0]['channel'] 
-                    text=data[0]['text'] 
+                    text=data[0]['text']
+                    user=data[0]['user']
+                    print(user, self.users_dict)
+                    if user in self.users_dict:
+                        print("found user")
+                        user = self.users_dict[user]
                     response = self.callBot(text)
+                    response = response.replace('nombre_de_usuario','@'+str(user))
                     self.sc.api_call( 
                         "chat.postMessage", 
                         channel=channel, 
@@ -79,7 +88,8 @@ class ChatbotManager():
 
 
 if __name__ == "__main__":
-    cm = ChatbotManager('ubuntu')
+    #cm = ChatbotManager('ubuntu')
+    cm = ChatbotManager('movistar_100k')
     cm.initBot()
     cm.initSlack()
     cm.readAndProcessSlackMessagesLoop()

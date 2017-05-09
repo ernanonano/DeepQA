@@ -193,7 +193,7 @@ def my_embedding_rnn_decoder(decoder_inputs,
   with variable_scope.variable_scope(scope or "embedding_rnn_decoder"):    
     loop_function = _extract_sample_and_embed(
         embedding, output_projection,
-        update_embedding_for_previous, temperature = 0.4) if feed_previous else None
+        update_embedding_for_previous, temperature = 0.2) if feed_previous else None
     emb_inp = (
         embedding_ops.embedding_lookup(embedding, i) for i in decoder_inputs)
     return rnn_decoder(emb_inp, initial_state, cell,
@@ -376,7 +376,7 @@ def my_embedding_attention_decoder(decoder_inputs,
   with variable_scope.variable_scope(scope or "embedding_attention_decoder", dtype=dtype):
     loop_function = _extract_sample_and_embed(
         embedding, output_projection,
-        update_embedding_for_previous, temperature = 0.4) if feed_previous else None
+        update_embedding_for_previous, temperature = 0.2) if feed_previous else None
     emb_inp = [
         embedding_ops.embedding_lookup(embedding, i) for i in decoder_inputs]
     return attention_decoder(

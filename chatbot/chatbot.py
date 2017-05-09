@@ -179,10 +179,9 @@ class Chatbot:
         # Also fix seed for random.shuffle (does it works globally for all files ?)
 
         # Running session
-        self.sess = tf.Session(config=tf.ConfigProto(
-            allow_soft_placement=True,  # Allows backup device for non GPU-available operations (when forcing GPU)
-            log_device_placement=False)  # Too verbose ?
-        )  # TODO: Replace all sess by self.sess (not necessary a good idea) ?
+        config = tf.ConfigProto(allow_soft_placement=True, log_device_placement=False)
+        config.gpu_options.allow_growth = True
+        self.sess = tf.Session(config=config)
 
         if self.args.debug:
             self.sess = tf_debug.LocalCLIDebugWrapperSession(self.sess)
